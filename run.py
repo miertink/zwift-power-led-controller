@@ -1,11 +1,10 @@
 #!/bin/python
 
 from zwift import Client
-# import paho.mqtt.client as mqtt
 from paho.mqtt import client as mqtt
 
 import time
-# import json
+import json
 
 # I know... this is not elegant!
 from settings import *
@@ -14,7 +13,6 @@ from settings import *
 
 if __name__ == "__main__":
     mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    # mqtt_client = mqtt.Client(mqtt_client_name)
     mqtt_client.username_pw_set(mqtt_login, mqtt_pw)
     mqtt_client.will_set(mqtt_topic_will, payload="Offline", retain=True)
     mqtt_client.connect(mqtt_host_name)
@@ -23,7 +21,6 @@ if __name__ == "__main__":
 
     client = Client(username, password)
     world = client.get_world(1)
-    # players_id = players(world.players)
     print('trying to find ' + str(player_id))
 
 while True:
@@ -43,7 +40,6 @@ while True:
             print(str(player_id) + ' appears to be offline or error while retrieving player status - trying..' + str(
                 error))
             time.sleep(5)
-            mqtt_client.publish("cmnd/miertink_e20fc4/power", 0, retain=True)
     while online:
         try:
             status = world.player_status(player_id)
@@ -53,11 +49,10 @@ while True:
             elif status.sport == 1:
                 msg_dict = {'is_online': 1, 'sport': 'running', 'hr': status.heartrate,
                             'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
-            # mqtt_client.publish(mqtt_topic, payload=json.dumps(msg_dict), retain=False)
-            mqtt_client.publish("cmnd/miertink_e20fc4/power", 1, retain=False)
+            mqtt_client.publish(mqtt_topic, payload=json.dumps(msg_dict), retain=False)
+            mqtt_client.publish("/cmnd/miertink_e20fc4/power", status.power, retain=False)
             print(msg_dict)
-            time.sleep(2)
+            time.sleep(4)
         except:
             online = False
-        # mqtt_client.publish(mqtt_topic, payload=json.dumps(msg_dict), retain=False)
     mqtt_client.loop_stop()
