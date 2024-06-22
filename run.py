@@ -2,6 +2,7 @@
 
 from zwift import Client
 from paho.mqtt import client as mqtt
+import numpy as np
 
 import time
 import json
@@ -10,6 +11,35 @@ import json
 from settings import *
 
 #OFFLINE_MSG = json.dumps({'is_online': 0, 'hr': 0, 'power': 0, 'speed': 0.0})
+
+class RingBuffer:
+    """ Class that implements a not-yet-full buffer. """
+    def __init__(self, bufsize):
+        self.bufsize = bufsize
+        self.data = []
+
+    class __Full:
+        """ Class that implements a full buffer. """
+        def add(self, x):
+            """ Add an element overwriting the oldest one. """
+            self.data[self.currpos] = x
+            self.currpos = (self.currpos+1) % self.bufsize
+        def get(self):
+            """ Return list of elements in correct order. """
+            return self.data[self.currpos:]+self.data[:self.currpos]
+
+    def add(self,x):
+        """ Add an element at the end of the buffer"""
+        self.data.append(x)
+        if len(self.data) == self.bufsize:
+            # Initializing current position attribute
+            self.currpos = 0
+            # Permanently change self's class from not-yet-full to full
+            self.__class__ = self.__Full
+
+    def get(self):
+        """ Return a list of elements from the oldest to the newest. """
+        return self.data
 
 if __name__ == "__main__":
     mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -22,6 +52,8 @@ if __name__ == "__main__":
     client = Client(username, password)
     world = client.get_world(1)
     print('trying to find ' + str(player_id))
+
+    x = RingBuffer(10)
 
 while True:
     error = 0
@@ -51,7 +83,9 @@ while True:
                             'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
             mqtt_client.publish(mqtt_topic, payload=json.dumps(msg_dict), retain=False)
             mqtt_client.publish("/cmnd/miertink_e20fc4/power", status.power, retain=False)
+            x.add(status.power)
             print(msg_dict)
+            print('Mean value = {:0.1f}   |  '.format(np.mean(x.get())), x.get())
             time.sleep(4)
         except:
             online = False
