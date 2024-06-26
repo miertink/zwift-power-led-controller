@@ -82,11 +82,13 @@ while True:
                 msg_dict = {'is_online': 1, 'sport': 'running', 'hr': status.heartrate,
                             'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
             mqtt_client.publish(mqtt_topic, payload=json.dumps(msg_dict), retain=False)
-            mqtt_client.publish("/cmnd/miertink_e20fc4/power", status.power, retain=False)
+            mqtt_client.publish("cmnd/Zwift/led_dimmer", round(status.power/3), retain=False)
+            mqtt_client.publish("cmnd/Zwift/led_enableAll", 1, retain=False)
             x.add(status.power)
             print(msg_dict)
             print('Mean value = {:0.1f}   |  '.format(np.mean(x.get())), x.get())
             time.sleep(4)
         except:
             online = False
+            mqtt_client.publish("cmnd/Zwift/led_enableAll", 0, retain=False)
     mqtt_client.loop_stop()
