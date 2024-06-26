@@ -62,9 +62,12 @@ while True:
     while not online:
         try:
             status = world.player_status(player_id)
+            profile = client.get_profile()
+            player_profile = profile.profile
             error = 0
             online = True
             print(str(player_id) + ' appears to be online, check if cycling or running')
+            print(str(ftp))
             time.sleep(2)
         except:
             error += 1
