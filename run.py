@@ -1,39 +1,73 @@
-#!/bin/python
-
-# Imports
+import logging
+import colorsys
+import time
 from zwift import Client
-from ringbuffer import RingBuffer
-from convert_to_rbg import Convert_to_rgb
 from paho.mqtt import client as mqtt
 from settings import *
+from ringbuffer import RingBuffer
 import numpy as np
-import time
-import json
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Constants and configurations
+MQTT_CONNECT_RETRY_INTERVAL = 5  # seconds
+MAX_RETRY_ATTEMPTS = 3  # Number of retry attempts
+BUFFER_SIZE = 3  # Ring buffer size that acts as weight factor to smooth cycling power oscilation
+MQTT_ENABLE_ALL_TOPIC = "cmnd/Zwift/led_enableAll"
+MQTT_DIMMER_TOPIC = "cmnd/Zwift/led_dimmer"
+MQTT_BASE_COLOR_TOPIC = "cmnd/Zwift/led_basecolor_rgb"
 
 
 def setup_mqtt():
     """Setup and configure the MQTT client."""
-    client = mqtt.Client()
-    client.username_pw_set(mqtt_login, mqtt_pw)
-    client.will_set(mqtt_topic_will, payload="Offline", retain=True)
-    client.connect(mqtt_host_name)
-    client.publish(mqtt_topic_will, payload="Online", retain=True)
-    client.publish(mqtt_topic, "Starting")
-    return client
+    retry_attempts = 0
+    mqtt_client = None
+
+    while retry_attempts < MAX_RETRY_ATTEMPTS:
+        try:
+            mqtt_client = mqtt.Client(protocol=mqtt.MQTTv31)
+            mqtt_client.username_pw_set(mqtt_login, mqtt_pw)
+            mqtt_client.will_set(mqtt_topic_will, payload="Offline", retain=True)
+            mqtt_client.connect(mqtt_host_name)
+            mqtt_client.publish(mqtt_topic_will, payload="Online", retain=True)
+            mqtt_client.publish(mqtt_topic, "Starting")
+            logger.info("MQTT client connected successfully")
+            return mqtt_client
+        except Exception as e:
+            logger.error(f"Error setting up MQTT client: {e}")
+            retry_attempts += 1
+            logger.info(f"Retry attempt {retry_attempts} in {MQTT_CONNECT_RETRY_INTERVAL} seconds...")
+            time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
+
+    logger.error("Maximum retry attempts reached. MQTT client setup failed.")
+    raise Exception("MQTT client setup failed after multiple retries.")
+
+
+def find_player_by_id(data, player_id):
+    """Check if player_id exists in data."""
+    return any(friend['playerId'] == player_id for friend in data['friendsInWorld'])
 
 
 def get_user_profile(client):
     """Retrieve user profile information from Zwift."""
-    profile = client.get_profile()
-    user_profile = profile.profile
-    return user_profile["ftp"], user_profile["firstName"]
+    try:
+        profile = client.get_profile()
+        user_profile = profile.profile
+        return user_profile["ftp"], user_profile["firstName"]
+    except Exception as e:
+        logger.error(f"Error retrieving user profile: {e}")
+        raise
 
 
-def get_led_color(power, user_zone7):
-    """Convert power to RGB color."""
-    led_color = Convert_to_rgb(1, user_zone7, power)
-    led_color = [format(int(x * 254), '02x') for x in led_color]
-    return "".join(led_color)
+def convert_to_rgb(minimum, maximum, value):
+    """Convert a value to a color using the color wheel in counter-clockwise direction."""
+    value = np.clip(value, minimum, maximum)
+    ratio = (value - minimum) / (maximum - minimum)
+    hue = (1 - ratio) * 360
+    rgb = colorsys.hsv_to_rgb(hue / 360, 1.0, 1.0)
+    return [int(x * 255) for x in rgb]
 
 
 def publish_status(mqtt_client, topic, payload):
@@ -42,66 +76,79 @@ def publish_status(mqtt_client, topic, payload):
 
 
 def main():
-    # MQTT setup
-    mqtt_client = setup_mqtt()
-
-    # Set ringbuffer size (weight factor)
-    buffer_size = 3
-    ring_buffer = RingBuffer(buffer_size)
+    # Attempt to set up MQTT client
+    try:
+        mqtt_client = setup_mqtt()
+    except Exception as e:
+        logger.error(f"Failed to set up MQTT client: {e}")
+        return
 
     # Zwift client setup
     client = Client(username, password)
     world = client.get_world(1)
-    print(f'Trying to find player {player_id}')
+    allplayers = world.players
+    logger.info(f'Trying to find player {player_id}')
 
-    # Get first name and FTP from user account
-    ftp_user_profile, first_name = get_user_profile(client)
+    user_found = find_player_by_id(allplayers, player_id)
+    if not user_found:
+        logger.error("User not found")
+        time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
+        return
 
-    # Set LED power (0-100) corresponding interval from user FTP*150%
-    user_zone7 = int(ftp_user_profile * 1.5)
+    # Get user profile
+    try:
+        ftp_user_profile, first_name = get_user_profile(client)
+        user_zone7 = int(ftp_user_profile * 1.5)
+    except Exception as e:
+        logger.error(f"Error retrieving user profile: {e}")
+        return
 
-    # Main loop
+    ring_buffer = RingBuffer(BUFFER_SIZE)
+
     while True:
-        error_count = 0
-        online = False
-        mqtt_client.loop_start()
-        while not online:
-            try:
-                status = world.player_status(player_id)
-                online = True
-                print(f'{player_id}, {first_name}, appears to be online, check if cycling or running, FTP: {ftp_user_profile}')
-                publish_status(mqtt_client, "cmnd/Zwift/led_enableAll", 1)
-                time.sleep(2)
-            except Exception as e:
-                error_count += 1
-                online = False
-                print(f'{player_id} appears to be offline or error while retrieving player status - trying.. {error_count}')
-                print(f'Error: {e}')
-                time.sleep(5)
-                publish_status(mqtt_client, "cmnd/Zwift/led_enableAll", 0)
+        try:
+            mqtt_client.loop_start()
+            error_count = 0
+            online = False
 
-        while online:
-            try:
-                status = world.player_status(player_id)
-                if status.sport == 0:
-                    msg_dict = {
-                        'is_online': 1,
-                        'sport': 'cycling',
-                        'hr': status.heartrate,
-                        'power': status.power,
-                        'speed': float(f"{status.speed / 1000000.0:.2f}")
-                    }
-                    ring_buffer.add(status.power)
-                    mean_power = int(np.mean(ring_buffer.get()))
-                    led_color = get_led_color(mean_power, user_zone7)
-                    print(f'{mean_power}, rgb: {led_color}')
-                    publish_status(mqtt_client, "cmnd/Zwift/led_dimmer", 100)
-                    publish_status(mqtt_client, "cmnd/Zwift/led_basecolor_rgb", led_color)
-                    time.sleep(4)
-            except Exception as e:
-                online = False
-                print(f'Error: {e}')
-        mqtt_client.loop_stop()
+            while not online and user_found:
+                try:
+                    world.player_status(player_id)
+                    online = True
+                    logger.info(f'{player_id}, {first_name}, appears to be online, FTP: {ftp_user_profile}')
+                    publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
+                    time.sleep(2)
+                except Exception as e:
+                    error_count += 1
+                    logger.error(
+                        f'{player_id} appears to be offline or error while retrieving player status - trying.. {error_count}')
+                    logger.error(f'Error: {e}')
+                    time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
+                    publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
+
+            while online:
+                try:
+                    status = world.player_status(player_id)
+                    if status.sport == 0:
+                        ring_buffer.add(status.power)
+                        mean_power = int(np.mean(ring_buffer.get()))
+                        led_color = convert_to_rgb(0, user_zone7, mean_power)
+                        led_color_hex = ''.join(f'{c:02x}' for c in led_color)
+                        logger.info(f'Actual power: {status.power}, Average power: {mean_power}, RGB: {led_color_hex}')
+                        publish_status(mqtt_client, MQTT_DIMMER_TOPIC, 100)
+                        publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
+                        time.sleep(4)
+                except Exception as e:
+                    online = False
+                    logger.error(f'Error: {e}')
+
+            mqtt_client.loop_stop()
+
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            logger.error(f'Unhandled exception: {e}')
+            time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
 
 if __name__ == "__main__":
