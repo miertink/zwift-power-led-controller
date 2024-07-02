@@ -36,13 +36,18 @@ def get_led_color(power, user_zone7):
     return "".join(led_color)
 
 
+def publish_status(mqtt_client, topic, payload):
+    """Publish status to the MQTT broker."""
+    mqtt_client.publish(topic, payload, retain=False)
+
+
 def main():
     # MQTT setup
     mqtt_client = setup_mqtt()
 
     # Set ringbuffer size (weight factor)
     buffer_size = 3
-    x = RingBuffer(buffer_size)
+    ring_buffer = RingBuffer(buffer_size)
 
     # Zwift client setup
     client = Client(username, password)
@@ -57,24 +62,23 @@ def main():
 
     # Main loop
     while True:
-        error = 0
+        error_count = 0
         online = False
         mqtt_client.loop_start()
         while not online:
             try:
                 status = world.player_status(player_id)
                 online = True
-                print(
-                    f'{player_id}, {first_name}, appears to be online, check if cycling or running, FTP: {ftp_user_profile}')
-                mqtt_client.publish("cmnd/Zwift/led_enableAll", 1, retain=False)
+                print(f'{player_id}, {first_name}, appears to be online, check if cycling or running, FTP: {ftp_user_profile}')
+                publish_status(mqtt_client, "cmnd/Zwift/led_enableAll", 1)
                 time.sleep(2)
             except Exception as e:
-                error += 1
+                error_count += 1
                 online = False
-                print(f'{player_id} appears to be offline or error while retrieving player status - trying.. {error}')
+                print(f'{player_id} appears to be offline or error while retrieving player status - trying.. {error_count}')
                 print(f'Error: {e}')
                 time.sleep(5)
-                mqtt_client.publish("cmnd/Zwift/led_enableAll", 0, retain=False)
+                publish_status(mqtt_client, "cmnd/Zwift/led_enableAll", 0)
 
         while online:
             try:
@@ -87,11 +91,12 @@ def main():
                         'power': status.power,
                         'speed': float(f"{status.speed / 1000000.0:.2f}")
                     }
-                    x.add(status.power)
-                    led_color = get_led_color(status.power, user_zone7)
-                    print(f'{msg_dict}, rbg: {led_color}')
-                    mqtt_client.publish("cmnd/Zwift/led_dimmer", 100, retain=False)
-                    mqtt_client.publish("cmnd/Zwift/led_basecolor_rgb", led_color, retain=False)
+                    ring_buffer.add(status.power)
+                    mean_power = int(np.mean(ring_buffer.get()))
+                    led_color = get_led_color(mean_power, user_zone7)
+                    print(f'{mean_power}, rgb: {led_color}')
+                    publish_status(mqtt_client, "cmnd/Zwift/led_dimmer", 100)
+                    publish_status(mqtt_client, "cmnd/Zwift/led_basecolor_rgb", led_color)
                     time.sleep(4)
             except Exception as e:
                 online = False
