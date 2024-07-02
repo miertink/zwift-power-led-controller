@@ -10,8 +10,7 @@ import time
 import json
 
 if __name__ == "__main__":
-
-    #mqtt setup
+    # mqtt setup
     mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     mqtt_client.username_pw_set(mqtt_login, mqtt_pw)
     mqtt_client.will_set(mqtt_topic_will, payload="Offline", retain=True)
@@ -19,23 +18,23 @@ if __name__ == "__main__":
     mqtt_client.publish(mqtt_topic_will, payload="Online", retain=True)
     mqtt_client.publish(mqtt_topic, "Starting")
 
-    #set ringbuffer size (weight factor)
+    # set ringbuffer size (weight factor)
     x = RingBuffer(3)
 
-    #get if user is online on zwift
+    # get if user is online on zwift
     client = Client(username, password)
     world = client.get_world(1)
     print('trying to find ' + str(player_id))
 
-    #get first name and ftp from user account
+    # get first name and ftp from user account
     profile = client.get_profile()
     user_profile = profile.profile
     ftp_user_profile = (user_profile["ftp"])
     firstName = (user_profile["firstName"])
 
-    #set led power (0-100) corresponding interval from user ftp*150%
+    # set led power (0-100) corresponding interval from user ftp*150%
     led_interval = [0, 100]
-    user_interval = [0, ftp_user_profile*1.5]
+    user_interval = [0, ftp_user_profile * 1.5]
 
 # main loop
 while True:
@@ -47,7 +46,8 @@ while True:
             status = world.player_status(player_id)
             error = 0
             online = True
-            print(str(player_id) + ', ' + str(firstName) + ', appears to be online, check if cycling or running, ftp: ' + str(ftp_user_profile))
+            print(str(player_id) + ', ' + str(
+                firstName) + ', appears to be online, check if cycling or running, ftp: ' + str(ftp_user_profile))
             mqtt_client.publish("cmnd/Zwift/led_enableAll", 1, retain=False)
             time.sleep(2)
         except:
