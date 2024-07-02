@@ -1,11 +1,13 @@
 import logging
 import colorsys
 import time
+import json
+import numpy as np
 from zwift import Client
 from paho.mqtt import client as mqtt
 from settings import *
 from ringbuffer import RingBuffer
-import numpy as np
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +20,7 @@ BUFFER_SIZE = 3  # Ring buffer size that acts as weight factor to smooth cycling
 MQTT_ENABLE_ALL_TOPIC = "cmnd/Zwift/led_enableAll"
 MQTT_DIMMER_TOPIC = "cmnd/Zwift/led_dimmer"
 MQTT_BASE_COLOR_TOPIC = "cmnd/Zwift/led_basecolor_rgb"
+MQTT_INFO_TOPIC = "Zwift/user_info"
 
 
 def setup_mqtt():
@@ -65,7 +68,7 @@ def convert_to_rgb(minimum, maximum, value):
     """Convert a value to a color using the color wheel in counter-clockwise direction."""
     value = np.clip(value, minimum, maximum)
     ratio = (value - minimum) / (maximum - minimum)
-    hue = (1 - ratio) * 360
+    hue = (0.8 - ratio) * 360
     rgb = colorsys.hsv_to_rgb(hue / 360, 1.0, 1.0)
     return [int(x * 255) for x in rgb]
 
@@ -99,6 +102,7 @@ def main():
     try:
         ftp_user_profile, first_name = get_user_profile(client)
         user_zone7 = int(ftp_user_profile * 1.5)
+        logger.info(f'FTP: {ftp_user_profile}, Zone 7: {user_zone7}')
     except Exception as e:
         logger.error(f"Error retrieving user profile: {e}")
         return
@@ -115,7 +119,7 @@ def main():
                 try:
                     world.player_status(player_id)
                     online = True
-                    logger.info(f'{player_id}, {first_name}, appears to be online, FTP: {ftp_user_profile}')
+                    logger.info(f'{player_id}, {first_name} appears to be online, lets retrieve activity data - trying..')
                     publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
                     time.sleep(2)
                 except Exception as e:
@@ -131,13 +135,20 @@ def main():
                     status = world.player_status(player_id)
                     if status.sport == 0:
                         ring_buffer.add(status.power)
-                        mean_power = int(np.mean(ring_buffer.get()))
-                        led_color = convert_to_rgb(0, user_zone7, mean_power)
+                        power_avg = int(np.mean(ring_buffer.get()))
+                        led_color = convert_to_rgb(0, user_zone7, power_avg)
                         led_color_hex = ''.join(f'{c:02x}' for c in led_color)
-                        logger.info(f'Actual power: {status.power}, Average power: {mean_power}, RGB: {led_color_hex}')
+                        msg_dict = {'is_online': 1,
+                                    'sport': 'cycling',
+                                    'hr': status.heartrate,
+                                    'power': status.power,
+                                    'power average': power_avg,
+                                    'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
+                        logger.info(msg_dict)
+                        publish_status(mqtt_client, MQTT_INFO_TOPIC, payload=json.dumps(msg_dict))
                         publish_status(mqtt_client, MQTT_DIMMER_TOPIC, 100)
                         publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
-                        time.sleep(4)
+                        time.sleep(4)  # Zwift does not allow shorter request cycle
                 except Exception as e:
                     online = False
                     logger.error(f'Error: {e}')
