@@ -35,7 +35,9 @@ if __name__ == "__main__":
 
     # set led power (0-100) corresponding interval from user ftp*150%
     led_interval = [0, 100]
-    user_interval = [0, ftp_user_profile * 1.5]
+    # user_zone7 = int(ftp_user_profile * 1.5)
+    user_zone7 = 100
+    user_interval = [0, user_zone7]
 
 # main loop
 while True:
@@ -64,14 +66,14 @@ while True:
             if status.sport == 0:
                 msg_dict = {'is_online': 1, 'sport': 'cycling', 'hr': status.heartrate, 'power': status.power,
                             'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
-            mqtt_client.publish(mqtt_topic, payload=json.dumps(msg_dict), retain=False)
-            power_equivalent = round(np.interp(status.power, user_interval, led_interval))
-            mqtt_client.publish("cmnd/Zwift/led_dimmer", power_equivalent, retain=False)
-            x.add(power_equivalent)
-            power_average = round(format(np.mean(x.get())), x.get())
-            led_color = Convert_to_rgb(1,100,power_equivalent)
-            print(str(msg_dict) + ", rbg: " + str(led_color))
-            time.sleep(4)
+                x.add(status.power)
+                led_color = Convert_to_rgb(1, user_zone7, status.power)
+                led_color = [format(int(x * 254), '02x') for x in led_color]
+                led_color = led_color[0] + led_color[1] + led_color[2]
+                print(str(msg_dict) + ", rbg: " + str(led_color))
+                mqtt_client.publish("cmnd/Zwift/led_dimmer", 100, retain=False)
+                mqtt_client.publish("cmnd/Zwift/led_basecolor_rgb", led_color, retain=False)
+                time.sleep(4)
         except:
             online = False
     mqtt_client.loop_stop()
