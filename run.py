@@ -3,6 +3,7 @@
 # imports
 from zwift import Client
 from ringbuffer import RingBuffer
+from convert_to_rbg import Convert_to_rgb
 from paho.mqtt import client as mqtt
 from settings import *
 import numpy as np
@@ -67,8 +68,9 @@ while True:
             power_equivalent = round(np.interp(status.power, user_interval, led_interval))
             mqtt_client.publish("cmnd/Zwift/led_dimmer", power_equivalent, retain=False)
             x.add(power_equivalent)
-            print(msg_dict)
-            print('mqtt led dim output = {:0.0f}   |  '.format(np.mean(x.get())), x.get())
+            power_average = round(format(np.mean(x.get())), x.get())
+            led_color = Convert_to_rgb(1,100,power_equivalent)
+            print(str(msg_dict) + ", rbg: " + str(led_color))
             time.sleep(4)
         except:
             online = False
