@@ -23,7 +23,7 @@ if __name__ == "__main__":
     client = Client(username, password)
     world = client.get_world(1)
 #   players(world.players)
-    print('trying to find ' + str(player_id))
+    print('trying to find ' + str(PLAYER_ID))
 
 while (True):
     error = 0
@@ -31,19 +31,19 @@ while (True):
     # mqtt_client.loop_start()
     while (not online):
         try:
-            status = world.player_status(player_id)
+            status = world.player_status(PLAYER_ID)
             error = 0
             online = True
-            print(str(player_id) + ' appears to be online, check if cycling or running')
+            print(str(PLAYER_ID) + ' appears to be online, check if cycling or running')
         except:
             error += 1
             online = False
-            print(str(player_id)+' appears to be offline or error while retrieving player status - trying..' + str(error))
+            print(str(PLAYER_ID)+' appears to be offline or error while retrieving player status - trying..' + str(error))
             time.sleep(5)
             # mqtt_client.publish("cmnd/miertink_e20fc4/power", 0, retain=True)
         while (online):
             try:
-                status = world.player_status(player_id)
+                status = world.player_status(PLAYER_ID)
                 if status.sport == 0:
                     msg_dict = {'is_online': 1, 'sport': 'cycling', 'hr': status.heartrate, 'power': status.power,
                                 'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
