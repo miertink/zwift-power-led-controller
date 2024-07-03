@@ -1,8 +1,8 @@
 # config zwift
 username = 'miertink.vix@hotmail.com'
 password = '***REDACTED-ROTATED-PASSWORD***'
-player_id = 4928251
-#player_id = 5097474
+# player_id = 1538784
+player_id = 5097474
 #check https://zwiftinsider.com/find-zwift-id/
 
 # config mqtt broker

@@ -39,18 +39,15 @@ def setup_mqtt():
             logger.info("MQTT client connected successfully")
             return mqtt_client
         except Exception as e:
-            logger.error(f"Error setting up MQTT client: {e}")
+            logger.error(
+                f"Error setting up MQTT client: {e}")
             retry_attempts += 1
-            logger.info(f"Retry attempt {retry_attempts} in {MQTT_CONNECT_RETRY_INTERVAL} seconds...")
+            logger.info(
+                f"Retry attempt {retry_attempts} in {MQTT_CONNECT_RETRY_INTERVAL} seconds...")
             time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
     logger.error("Maximum retry attempts reached. MQTT client setup failed.")
     raise Exception("MQTT client setup failed after multiple retries.")
-
-
-def find_player_by_id(data, player_id):
-    """Check if player_id exists in data."""
-    return any(friend['playerId'] == player_id for friend in data['friendsInWorld'])
 
 
 def get_user_profile(client):
@@ -60,7 +57,8 @@ def get_user_profile(client):
         user_profile = profile.profile
         return user_profile["ftp"], user_profile["firstName"]
     except Exception as e:
-        logger.error(f"Error retrieving user profile: {e}")
+        logger.error(
+            f"Error retrieving user profile: {e}")
         raise
 
 
@@ -80,57 +78,68 @@ def publish_status(mqtt_client, topic, payload):
 
 def main():
     # Attempt to set up MQTT client
-    try:
-        mqtt_client = setup_mqtt()
-    except Exception as e:
-        logger.error(f"Failed to set up MQTT client: {e}")
-        return
+    mqtt_client = setup_mqtt()
+    retry_attempts = 0
 
     # Zwift client setup
     client = Client(username, password)
     world = client.get_world(1)
-    allplayers = world.players
-    logger.info(f'Trying to find player {player_id}')
-
-    user_found = find_player_by_id(allplayers, player_id)
-    if not user_found:
-        logger.error("User not found")
-        time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
-        return
+    logger.info(
+        f'Trying to find user {player_id} ...')
+    while True:
+        try:
+            user_found = world.player_status(player_id)
+            logger.info(
+                f'User {player_id} found !')
+            break
+        except:
+            logger.error(
+                f"User {player_id} not found...")
+            retry_attempts += 1
+            logger.info(
+                f"Retry attempt {retry_attempts} in {MQTT_CONNECT_RETRY_INTERVAL} seconds...")
+            time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
     # Get user profile
     try:
         ftp_user_profile, first_name = get_user_profile(client)
         user_zone7 = int(ftp_user_profile * 1.5)
-        logger.info(f'FTP: {ftp_user_profile}, Zone 7: {user_zone7}')
+        logger.info(
+            f'User profile FTP: {ftp_user_profile}, Zone 7: {user_zone7}')
     except Exception as e:
-        logger.error(f"Error retrieving user profile: {e}")
+        logger.error(
+            f"Error retrieving user profile: {e}")
         return
 
     ring_buffer = RingBuffer(BUFFER_SIZE)
 
-    while True:
-        try:
-            mqtt_client.loop_start()
-            error_count = 0
-            online = False
+    while user_found:
+        mqtt_client.loop_start()
+        error_count = 0
+        online = False
 
-            while not online and user_found:
-                try:
-                    world.player_status(player_id)
-                    online = True
-                    logger.info(f'{player_id}, {first_name} appears to be online, lets retrieve activity data - trying..')
-                    publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
-                    time.sleep(2)
-                except Exception as e:
-                    error_count += 1
-                    logger.error(
-                        f'{player_id} appears to be offline or error while retrieving player status - trying.. {error_count}')
-                    logger.error(f'Error: {e}')
-                    time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
-                    publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
+        while (not online and user_found):
+            try:
+                world.player_status(player_id)
+                online = True
+                error_count = 0
+                logger.info(
+                    f'{player_id}, {first_name} appears to be online, lets retrieve activity data - trying..')
+                publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
+            # except Exception as e:
+            except:
+                online = False
+                user_found = False
+                error_count += 1
+                logger.error(
+                    f'{player_id} appears to be offline or error while retrieving player status - trying.. {error_count}')
+                logger.error(
+                    f'Error: Error, probably 404 from protobuf')
+                #     f'Error: {e}')
+                publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
+            time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
-            while online:
+            while (online):
                 try:
                     status = world.player_status(player_id)
                     if status.sport == 0:
@@ -148,19 +157,16 @@ def main():
                         publish_status(mqtt_client, MQTT_INFO_TOPIC, payload=json.dumps(msg_dict))
                         publish_status(mqtt_client, MQTT_DIMMER_TOPIC, 100)
                         publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
-                        time.sleep(4)  # Zwift does not allow shorter request cycle
-                except Exception as e:
+                # except Exception as e:
+                except:
                     online = False
-                    logger.error(f'Error: {e}')
-
-            mqtt_client.loop_stop()
-
-        except KeyboardInterrupt:
-            break
-        except Exception as e:
-            logger.error(f'Unhandled exception: {e}')
-            time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
-
+                    user_found = False
+                    logger.error(
+                        f'Error: Error, probably 404 from protobuf')
+                    #     f'Error: {e}')
+                time.sleep(4)  # Zwift does not allow shorter request cycle, not adjustable
+        mqtt_client.loop_stop()
+        time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
 if __name__ == "__main__":
     main()
