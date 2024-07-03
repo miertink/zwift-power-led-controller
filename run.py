@@ -12,6 +12,7 @@ from ringbuffer import RingBuffer
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def setup_mqtt():
     """Setup and configure the MQTT client."""
 
@@ -46,7 +47,7 @@ def publish_status(mqtt_client, topic, payload):
 
 def main():
     # Attempt to set up MQTT client
-    #mqtt_client = setup_mqtt()
+    # mqtt_client = setup_mqtt()
 
     # Zwift client setup
     """Login into Zwift and find if user is existent"""
@@ -69,29 +70,29 @@ def main():
     # Some setup before the main routine
     """Set Z7 cycling power zone, cycling power smooth factor, and set some variables."""
     user_power_zone7 = int(ftp_user_profile * 1.5)
-    ring_buffer = RingBuffer(BUFFER_SIZE)  # Ring buffer size that acts as weight factor to smooth out cycling power oscilation
+    ring_buffer = RingBuffer(BUFFER_SIZE)
     online = False
     error_count = 0
 
     # Main routine
     """Check online activity and publish into MQTT broker"""
-    while (not online):
+    while not online:
         try:
             world.player_status(PLAYER_ID)
             online = True
             error_count = 0
             logger.info(
                 f'{PLAYER_ID} appears to be online, lets retrieve activity data - trying..')
-            #publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
+            # publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
         except:
             online = False
             error_count += 1
             logger.info(
                 f'{PLAYER_ID} appears to be offline - trying.. {error_count}')
-            #publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
+            # publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
         time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
-        while (online):
+        while online:
             try:
                 status = world.player_status(PLAYER_ID)
                 if status.sport == 0:
@@ -117,6 +118,7 @@ def main():
             time.sleep(MQTT_ZWIFT_REQUEST_INTERNAL)
     #mqtt_client.loop_stop()
     time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
+
 
 if __name__ == "__main__":
     main()
