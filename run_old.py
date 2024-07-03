@@ -67,3 +67,4 @@ current_color = '#000000'
 
 # Start the LED transition thread
 threading.Thread(target=led_transition_thread).start()
+#..
