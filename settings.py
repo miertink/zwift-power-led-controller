@@ -1,9 +1,9 @@
 #  ZWIFT
+"""Check https://zwiftinsider.com/find-zwift-id/"""
 USERNAME = 'miertink.vix@hotmail.com'
 PASSWORD = '***REDACTED-ROTATED-PASSWORD***'
-# PLAYER_ID = 937870
-PLAYER_ID = 5097474
-#check https://zwiftinsider.com/find-zwift-id/
+PLAYER_ID = 258904
+# PLAYER_ID = 5097474
 
 #  MQTTT BROKER
 MQTT_HOST_NAME = "192.168.68.10"

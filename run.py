@@ -17,7 +17,7 @@ def setup_mqtt():
     """Setup and configure the MQTT client."""
 
     try:
-        mqtt_client = mqtt.Client(protocol=mqtt.MQTTv31)
+        mqtt_client = mqtt.Client(protocol=mqtt.MQTTv5)
         mqtt_client.username_pw_set(MQTT_LOGIN, MQTT_PW)
         mqtt_client.will_set(MQTT_ENABLE_ALL_TOPIC, payload="Offline", retain=True)
         mqtt_client.connect(MQTT_HOST_NAME)
@@ -47,7 +47,7 @@ def publish_status(mqtt_client, topic, payload):
 
 def main():
     # Attempt to set up MQTT client
-    # mqtt_client = setup_mqtt()
+    mqtt_client = setup_mqtt()
 
     # Zwift client setup
     """Login into Zwift and find if user is existent"""
@@ -77,19 +77,21 @@ def main():
     # Main routine
     """Check online activity and publish into MQTT broker"""
     while not online:
+        mqtt_client.loop_start()
         try:
             world.player_status(PLAYER_ID)
             online = True
             error_count = 0
             logger.info(
                 f'{PLAYER_ID} appears to be online, lets retrieve activity data - trying..')
-            # publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
+            publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
+            publish_status(mqtt_client, MQTT_DIMMER_TOPIC, 100)
         except:
             online = False
             error_count += 1
             logger.info(
                 f'{PLAYER_ID} appears to be offline - trying.. {error_count}')
-            # publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
+            publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
         time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
         while online:
@@ -107,16 +109,14 @@ def main():
                                 'power average': power_avg,
                                 'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
                     logger.info(msg_dict)
-                    #publish_status(mqtt_client, MQTT_INFO_TOPIC, payload=json.dumps(msg_dict))
-                    #publish_status(mqtt_client, MQTT_DIMMER_TOPIC, 100)
-                    #publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
-            # except Exception as e:
+                    publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
+                    publish_status(mqtt_client, MQTT_INFO_TOPIC, payload=json.dumps(msg_dict))
             except:
                 online = False
                 logger.info(
                     f'{PLAYER_ID} appears to have gone offline')
             time.sleep(MQTT_ZWIFT_REQUEST_INTERNAL)
-    #mqtt_client.loop_stop()
+    mqtt_client.loop_stop()
     time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
 
