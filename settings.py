@@ -2,7 +2,7 @@
 """Check https://zwiftinsider.com/find-zwift-id/"""
 USERNAME = 'miertink.vix@hotmail.com'
 PASSWORD = '***REDACTED-ROTATED-PASSWORD***'
-PLAYER_ID = 140313
+PLAYER_ID = 1636594
 # PLAYER_ID = 5097474
 
 #  MQTTT BROKER

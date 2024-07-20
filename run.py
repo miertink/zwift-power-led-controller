@@ -1,12 +1,13 @@
-import logging
-import colorsys
-import time
-import json
-import numpy as np
 from zwift import Client
 from paho.mqtt import client as mqtt
-from settings import *
 from ringbuffer import RingBuffer
+from settings import *
+import matplotlib.pyplot as mplt
+import matplotlib.colors as mcolors
+import numpy as np
+import logging
+import time
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -31,13 +32,13 @@ def setup_mqtt():
         exit()
 
 
-def convert_to_rgb(minimum, maximum, value):
-    """Convert a value to a color using the color wheel in counter-clockwise direction."""
-    value = np.clip(value, minimum, maximum)
-    ratio = (value - minimum) / (maximum - minimum)
-    hue = (0.8 - ratio) * 360
-    rgb = colorsys.hsv_to_rgb(hue / 360, 1.0, 1.0)
-    return [int(x * 255) for x in rgb]
+def convert_to_rgb(maximum, value, colormap_name='rainbow'):
+    """Convert a value to a color using matplotlib colormap."""
+    colormap = mplt.get_cmap(colormap_name)
+    value = (value / maximum)
+    rgba = colormap(value)
+    rbg = mcolors.to_hex(rgba)
+    return rbg
 
 
 def publish_status(mqtt_client, topic, payload):
@@ -60,6 +61,7 @@ def main():
         profile = client.get_profile()
         user_profile = profile.profile
         ftp_user_profile = user_profile["ftp"]
+        ftp_user_profile = 120
         logger.info(
             f'Login {PLAYER_ID}, user {USERNAME}, ftp {ftp_user_profile} - successfully done')
     except:
@@ -100,8 +102,8 @@ def main():
                 if status.sport == 0:
                     ring_buffer.add(status.power)
                     power_avg = int(np.mean(ring_buffer.get()))
-                    led_color = convert_to_rgb(0, user_power_zone7, power_avg)
-                    led_color_hex = ''.join(f'{c:02x}' for c in led_color)
+                    led_color = convert_to_rgb(user_power_zone7, power_avg)
+                    led_color_hex = led_color.lstrip('#')
                     msg_dict = {'is_online': 1,
                                 'sport': 'cycling',
                                 'hr': status.heartrate,
