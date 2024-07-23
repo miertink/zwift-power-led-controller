@@ -61,7 +61,7 @@ def main():
         profile = client.get_profile()
         user_profile = profile.profile
         ftp_user_profile = user_profile["ftp"]
-        ftp_user_profile = 120
+        # ftp_user_profile = 220
         logger.info(
             f'Login {PLAYER_ID}, user {USERNAME}, ftp {ftp_user_profile} - successfully done')
     except:
