@@ -11,6 +11,7 @@ import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(filename='/var/log/ZwiftLight.log', filemode='w', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
