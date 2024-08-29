@@ -1,9 +1,8 @@
 from zwift import Client
 from paho.mqtt import client as mqtt
 from ringbuffer import RingBuffer
+from power_to_color import PowerToColor
 from settings import *
-import matplotlib.pyplot as mplt
-import matplotlib.colors as mcolors
 import numpy as np
 import logging
 import time
@@ -32,39 +31,6 @@ def setup_mqtt():
             f"MQTT client could not connect to {MQTT_HOST_NAME}, check settings.py")
         exit()
 
-
-def convert_to_rgb(maximum, value, colormap_name='rainbow'):
-    """Convert a value to a color using matplotlib colormap."""
-    colormap = mplt.get_cmap(colormap_name)
-    value = (value / maximum)
-    rgba = colormap(value)
-    rbg = mcolors.to_hex(rgba)
-    return rbg
-
-
-def powerzone_to_color(power_percentage):
-    global last_color
-    actual_color = last_color
-    color_found = False
-
-    for interval, color in POWER_ZONES:
-        lower_interval = interval[0] - HYSTERESIS
-        upper_interval = interval[1] + HYSTERESIS
-
-        if lower_interval <= power_percentage <= upper_interval:
-            print (actual_color, color)
-            if actual_color != color:
-                actual_color = color
-            color_found = True
-            break
-
-    if not color_found:
-        logger.error("Powerzone not found")
-        return last_color
-
-    last_color = actual_color
-    return actual_color
-
 def publish_status(mqtt_client, topic, payload):
     """Publish status to the MQTT broker."""
     mqtt_client.publish(topic, payload, retain=False)
@@ -84,7 +50,7 @@ def main():
         profile = client.get_profile()
         user_profile = profile.profile
         ftp_user_profile = int(user_profile["ftp"])
-        ftp_user_profile = 170
+        # ftp_user_profile = 170
         logger.info(
             f'Login {PLAYER_ID}, user {USERNAME}, ftp {ftp_user_profile} - successfully done')
     except:
@@ -94,7 +60,6 @@ def main():
 
     # Some setup before the main routine
     """Set Z7 cycling power zone, cycling power smooth factor, and set some variables."""
-    # user_power_zone7 = int(ftp_user_profile * 1.5)
     ring_buffer = RingBuffer(BUFFER_SIZE)
     online = False
     error_count = 0
@@ -125,8 +90,6 @@ def main():
                 if status.sport == 0:
                     ring_buffer.add(status.power)
                     power_avg = int(np.mean(ring_buffer.get()))
-                    # led_color = convert_to_rgb(user_power_zone7, power_avg)
-                    # led_color_hex = led_color.lstrip('#')
                     power_percentage = round(power_avg/ftp_user_profile*100)
                     led_color_hex = powerzone_to_color(power_percentage)
                     msg_dict = {'is_online': 1,
