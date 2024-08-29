@@ -2,7 +2,7 @@
 """Check https://zwiftinsider.com/find-zwift-id/"""
 USERNAME = 'miertink.vix@hotmail.com'
 PASSWORD = '***REDACTED-ROTATED-PASSWORD***'
-PLAYER_ID = 1011
+PLAYER_ID = 1149051
 # PLAYER_ID = 5097474
 
 #  MQTTT BROKER
@@ -24,6 +24,6 @@ MQTT_INFO_TOPIC = "Zwift/user_info"
 
 #  POWER ZONES & COLORS (Zwift Standard)
 # Example usage
-thresholds = [59, 75, 89, 104, 118]  # Define thresholds for 5 levels
-deadband = 5                        # Define deadband to avoid oscillation around thresholds
-overrun_limit = 1000                 # Define overrun limit
+THRESHOLDS = [59, 75, 89, 104, 118]  # Define thresholds for 5 levels
+DEADBAND = 5                        # Define deadband to avoid oscillation around thresholds
+OVERRUN_LIMIT = 1000                 # Define overrun limit

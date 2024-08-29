@@ -91,13 +91,15 @@ def main():
                     ring_buffer.add(status.power)
                     power_avg = int(np.mean(ring_buffer.get()))
                     power_percentage = round(power_avg/ftp_user_profile*100)
-                    led_color_hex = powerzone_to_color(power_percentage)
+                    p2z = PowerToColor(THRESHOLDS, DEADBAND, OVERRUN_LIMIT)
+                    led_color_hex = p2z.switch_output(power_percentage)
                     msg_dict = {'is_online': 1,
                                 'sport': 'cycling',
                                 'hr': status.heartrate,
                                 'power': status.power,
                                 'power average': power_avg,
                                 'power percentage': power_percentage,
+                                'rbg output color': led_color_hex,
                                 'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
                     logger.info(msg_dict)
                     publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
