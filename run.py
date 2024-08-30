@@ -1,18 +1,15 @@
 from zwift import Client
 from paho.mqtt import client as mqtt
-from ringbuffer import RingBuffer
 from power_to_color import PowerToColor
 from settings import *
-import numpy as np
 import logging
 import time
 import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
-#logging.basicConfig(filename='/var/log/ZwiftLight.log', filemode='w', level=logging.INFO)
+# Logging.basicConfig(filename='/var/log/ZwiftLight.log', filemode='w', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 def setup_mqtt():
     """Setup and configure the MQTT client."""
@@ -60,7 +57,6 @@ def main():
 
     # Some setup before the main routine
     """Set Z7 cycling power zone, cycling power smooth factor, and set some variables."""
-    ring_buffer = RingBuffer(BUFFER_SIZE)
     online = False
     error_count = 0
 
@@ -88,16 +84,13 @@ def main():
             try:
                 status = world.player_status(PLAYER_ID)
                 if status.sport == 0:
-                    ring_buffer.add(status.power)
-                    power_avg = int(np.mean(ring_buffer.get()))
-                    power_percentage = round(power_avg/ftp_user_profile*100)
+                    power_percentage = round(status.power/ftp_user_profile*100)
                     p2z = PowerToColor(THRESHOLDS, DEADBAND, OVERRUN_LIMIT)
                     led_color_hex = p2z.switch_output(power_percentage)
                     msg_dict = {'is_online': 1,
                                 'sport': 'cycling',
                                 'hr': status.heartrate,
                                 'power': status.power,
-                                'power average': power_avg,
                                 'power percentage': power_percentage,
                                 'rbg output color': led_color_hex,
                                 'speed': float("{:.2f}".format(float(status.speed) / 1000000.0))}
