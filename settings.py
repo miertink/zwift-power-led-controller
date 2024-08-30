@@ -25,5 +25,5 @@ MQTT_INFO_TOPIC = "Zwift/user_info"
 #  POWER ZONES & COLORS (Zwift Standard)
 # Example usage
 THRESHOLDS = [59, 75, 89, 104, 118]  # Define thresholds for 5 levels
-DEADBAND = 5                        # Define deadband to avoid oscillation around thresholds
+DEADBAND = 5                         # Define deadband to avoid oscillation around thresholds
 OVERRUN_LIMIT = 1000                 # Define overrun limit
