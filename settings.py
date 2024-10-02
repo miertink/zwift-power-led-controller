@@ -1,15 +1,17 @@
 #  ZWIFT
 """Check https://zwiftinsider.com/find-zwift-id/"""
-USERNAME = 'miertink.vix@hotmail.com'
-PASSWORD = '***REDACTED-ROTATED-PASSWORD***'
-#PLAYER_ID = 1149051
-PLAYER_ID = 5097474
+USERNAME = 'yourusername'
+PASSWORD = 'yourpassword'
+PLAYER_ID = yourid
+
+# MQTT Enable
+USE_MQTT = False
 
 #  MQTTT BROKER
-MQTT_HOST_NAME = "192.168.68.10"
-MQTT_CLIENT_NAME = "MieRTinK"
-MQTT_LOGIN = "tht"
-MQTT_PW = "***REDACTED-ROTATED-PASSWORD***"
+MQTT_HOST_NAME = "ipofyourmqttbroker"
+MQTT_CLIENT_NAME = "clientname"
+MQTT_LOGIN = "user"
+MQTT_PW = "password"
 
 #  CONSTANTS AND CONFIGURATIONS
 MQTT_CONNECT_RETRY_INTERVAL = 5  # Seconds
