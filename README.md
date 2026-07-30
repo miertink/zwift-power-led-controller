@@ -1,4 +1,4 @@
-﻿# ZwiftLight
+﻿# Zwift Power LED Controller (ZwiftLight)
 
 ## Introduction:
 
