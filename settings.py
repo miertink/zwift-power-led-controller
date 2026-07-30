@@ -5,7 +5,7 @@ PASSWORD = 'yourpassword'
 PLAYER_ID = yourid
 
 # MQTT Enable
-USE_MQTT = False
+USE_MQTT = True
 
 #  MQTTT BROKER
 MQTT_HOST_NAME = "ipofyourmqttbroker"

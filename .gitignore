@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+*.spec
+.idea/
+
+# Contains real Zwift credentials -- never commit this
+Zwift_Python_Client.txt
