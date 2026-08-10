@@ -1,3 +1,9 @@
+import os
+
+# zwift-client embute um _pb2.py gerado com protoc antigo, incompatível com o
+# backend C++ do protobuf >=3.20. A implementação pura Python ainda aceita.
+os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
+
 from zwift import Client
 from paho.mqtt import client as mqtt
 from power_to_color import PowerToColor
