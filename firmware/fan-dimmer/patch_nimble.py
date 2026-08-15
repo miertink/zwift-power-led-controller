@@ -1,12 +1,8 @@
 Import("env")
 
-# NimBLE-Arduino's NimBLEClient::connect() busy-spins ble_gap_connect() with no delay
-# while waiting for an in-progress scan to actually stop at the controller level
-# (BLE_HS_EBUSY case in the do/while loop). Without a delay this can take dozens of
-# retries and 30-40+ seconds of real time to clear on its own, making every BLE HRM
-# connect attempt look hung. Patched in directly since this is a lib_deps-managed
-# dependency (re-downloaded into .pio/libdeps, not vendored under lib/) - this script
-# re-applies the fix after every library install/update so it isn't silently lost.
+# NimBLEClient::connect() busy-spins with no delay while waiting for the scan to actually
+# stop, taking 30-40+ seconds to clear on its own. This re-applies a delay fix to the
+# installed (not vendored) NimBLE-Arduino source after every lib install/update.
 import os
 
 TARGET = os.path.join(env.subst("$PROJECT_LIBDEPS_DIR"), env.subst("$PIOENV"),
@@ -20,11 +16,8 @@ OLD = """            case BLE_HS_EBUSY:
                 break;"""
 
 NEW = """            case BLE_HS_EBUSY:
-                // Scan was still running, stop it and try again. stop() only requests
-                // the stop at the controller level - without a delay here this loop
-                // busy-spins calling ble_gap_connect() again before the controller has
-                // actually finished stopping, which can take dozens of retries (and tens
-                // of seconds of real time) to clear on its own.
+                // Scan was still running, stop it and try again - delay so the
+                // controller has time to actually finish stopping before the retry.
                 if (!NimBLEDevice::getScan()->stop()) {
                     rc = BLE_HS_EUNKNOWN;
                 } else {

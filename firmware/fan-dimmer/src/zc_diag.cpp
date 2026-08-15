@@ -1,13 +1,10 @@
 #include "zc_diag.h"
 
-// A clean 60Hz half-cycle is ~8333us, 50Hz is ~10000us. Flag anything well outside a
-// generous band around either as a glitch (missed zero-cross, double-trigger, noise).
+// A clean half-cycle is ~8333us (60Hz) to ~10000us (50Hz); flag well outside that as a glitch.
 #define ZC_GLITCH_LOW_US 6000
 #define ZC_GLITCH_HIGH_US 11500
 
-// Debounce window: real zero-crossings are ~8333-10000us apart, so anything faster is
-// electrical bounce/noise on the zero-cross signal, not a genuine transition. Measured
-// glitches were 6-610us apart, well inside this margin.
+// Measured bounce was 6-610us apart, well under a real half-cycle - anything faster is noise.
 #define ZC_DEBOUNCE_US 2000
 
 static volatile uint32_t lastZcMicros = 0;

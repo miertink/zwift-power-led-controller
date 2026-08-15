@@ -3,11 +3,7 @@
 #include "RBDmcuESP32.h"
 #include "zc_diag.h"
 
-// TRIAC gate pulse width, in ~94us timer ticks (was 1 = ~94us). Widened to give an
-// inductive (motor) load's current enough time to exceed the TRIAC's holding current
-// before the gate pulse ends - too short a pulse fired very close to the zero-cross
-// (near-100% power, minimal phase delay) can fail to latch, causing intermittent skipped
-// half-cycles. Validated on the ESP8266 build of this same firmware.
+// Widened from 1 (~94us) to give an inductive motor load enough time to latch near full power.
 int pulseWidth = 4;
 volatile int current_dim = 0;
 int all_dim = 3;

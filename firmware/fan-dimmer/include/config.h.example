@@ -3,52 +3,45 @@
 // Copy this file to config.h and fill in your real credentials.
 // config.h is gitignored so your credentials never get committed.
 
-// Wi-Fi credentials (fan control never depends on this - BLE is the sole source of truth
-// there - but the RGB LED does need it to reach the Tasmota controller over MQTT)
+// Wi-Fi (optional - only used for status telemetry, fan control doesn't need it)
 #define WIFI_SSID "yourwifissid"
 #define WIFI_PASSWORD "yourwifipassword"
 
-// MQTT broker. Fan control never subscribes to anything (BLE HRM drives it directly), but
-// the RGB LED publishes to the same Tasmota topics settings.py/run.py used to use, now
-// driven from HR zones instead of Zwift power - keep run.py's LED publishing disabled so
-// the two don't fight over the same topics.
+// MQTT broker (fan control never depends on this - BLE is the sole source of truth there)
 #define MQTT_HOST "ipofyourmqttbroker"
 #define MQTT_PORT 1883
 #define MQTT_LOGIN "user"
 #define MQTT_PASSWORD "password"
 #define MQTT_CLIENT_ID "fan-dimmer"
 #define MQTT_STATUS_TOPIC "tele/FanDimmer/status"
-#define MQTT_ENABLE_ALL_TOPIC "cmnd/Zwift/led_enableAll"
-#define MQTT_DIMMER_TOPIC "cmnd/Zwift/led_dimmer"
-#define MQTT_BASE_COLOR_TOPIC "cmnd/Zwift/led_basecolor_rgb"
+#define MQTT_ENABLE_ALL_TOPIC "cmnd/led-st/led_enableAll"
+#define MQTT_DIMMER_TOPIC "cmnd/led-st/led_dimmer"
+#define MQTT_BASE_COLOR_TOPIC "cmnd/led-st/led_basecolor_rgb"
+// Remote on/off override for the fan (e.g. a Home Assistant MQTT switch)
+#define MQTT_FAN_POWER_COMMAND_TOPIC "cmnd/FanDimmer/power"
+#define MQTT_FAN_POWER_STATE_TOPIC "stat/FanDimmer/power"
 
-// BLE heart rate monitor (Garmin HRM 200 or any strap broadcasting the standard BLE
-// Heart Rate Service, UUID 0x180D). Leave HRM_MAC_ADDRESS empty ("") to connect to the
-// first matching device found; set it (e.g. "AA:BB:CC:DD:EE:FF") to pin to one specific
-// strap once you know its address, so it doesn't accidentally pair with someone else's.
+// Leave HRM_MAC_ADDRESS empty to accept the first Heart Rate Service (0x180D) found, or
+// pin it (e.g. "AA:BB:CC:DD:EE:FF") to one specific strap.
 #define HRM_MAC_ADDRESS ""
 
-// Fan speed curve: continuous linear mapping from BPM to fan duty cycle (%). Tune these
-// once you know your real riding HR range - these are just a starting point.
-#define HRM_BASE_SPEED 50  // Fan duty cycle (%) at HRM_MIN_BPM, ramping up from there
-#define HRM_MIN_BPM 100    // Below this BPM the fan turns off entirely (not idling at HRM_BASE_SPEED)
+// Fan speed curve: linear mapping from BPM to fan duty cycle (%)
+#define HRM_BASE_SPEED 50  // Duty cycle at/below HRM_MIN_BPM
+#define HRM_MIN_BPM 100    // Below this the fan turns off entirely
 #define HRM_MAX_BPM 160    // BPM at/above which the fan sits at HRM_MAX_SPEED
-// Keep this a few % below 100 - very close to full conduction the TRIAC fires almost
-// immediately after the zero-cross, too little margin for an inductive motor load to
-// latch reliably. If your fan has its own manual speed switch, the safe ceiling can differ
-// a lot per switch position (a lower-impedance winding tap tolerates less phase-cutting) -
-// re-measure for whichever position you leave it on. 85 is confirmed working on the
-// reference hardware's "High" switch position.
-#define HRM_MAX_SPEED 85   // Fan duty cycle (%) at/above HRM_MAX_BPM
+// Keep a few % below 100 - too close to full conduction, an inductive motor load may not
+// latch reliably. If your fan has its own manual speed switch, re-measure the safe ceiling
+// per position (85 is confirmed on the reference hardware's "High" position).
+#define HRM_MAX_SPEED 85
 
-// If no heart rate notification arrives for this long (strap off, BLE dropped), treat the
-// reading as stale and ramp the fan down.
+// Once running, the fan only turns off after dropping this many BPM below HRM_MIN_BPM -
+// avoids clicking on/off when BPM hovers right around the threshold.
+#define HRM_HYSTERESIS_BPM 5
+
+// Heart rate reading is treated as stale after this long without a new notification
 #define HRM_STALE_TIMEOUT_MS 15000
 
-// Heart-rate zone boundaries (BPM) driving the RGB LED color - independent of the fan
-// curve above. Mirrors the same 6-color palette power_to_color.py used for Zwift power
-// zones (grey/blue/green/yellow/orange/tomato), now driven by HR zones instead:
-// <Z1=grey (resting), Z1=blue, Z2=green, Z3=yellow, Z4=orange, Z5=tomato.
+// HR zone boundaries (BPM) driving the RGB LED color: grey (rest)/blue/green/yellow/orange/tomato
 #define HR_ZONE1_MIN 100
 #define HR_ZONE2_MIN 120
 #define HR_ZONE3_MIN 138

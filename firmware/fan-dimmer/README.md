@@ -26,7 +26,13 @@ two things directly, with no other device or service involved:
   computed locally in [src/main.cpp](src/main.cpp) (`HRM_BASE_SPEED` /
   `HRM_MIN_BPM` / `HRM_MAX_BPM` / `HRM_MAX_SPEED` in `config.h`). Below
   `HRM_MIN_BPM` the fan turns off entirely rather than idling at
-  `HRM_BASE_SPEED`.
+  `HRM_BASE_SPEED`; `HRM_HYSTERESIS_BPM` keeps it from clicking on/off when
+  BPM hovers right around that threshold.
+- **Remote on/off**: an optional Home Assistant MQTT switch
+  (`MQTT_FAN_POWER_COMMAND_TOPIC` / `MQTT_FAN_POWER_STATE_TOPIC` in
+  `config.h`) overrides the fan on top of the BPM curve - see "Home
+  Assistant" below. Defaults to ON, so the fan works normally if it's never
+  configured.
 - **RGB LED**: published over MQTT to a Tasmota RGB controller
   (`MQTT_ENABLE_ALL_TOPIC` / `MQTT_DIMMER_TOPIC` / `MQTT_BASE_COLOR_TOPIC`
   in `config.h`), colored by heart-rate zone (`HR_ZONE1_MIN`..`HR_ZONE5_MIN`
@@ -36,23 +42,20 @@ two things directly, with no other device or service involved:
   spamming MQTT on every BLE notification (arrives roughly once a second).
 - **Safety**: the BLE link itself is the fan's kill switch - no connection,
   a stale reading, or BPM below `HRM_MIN_BPM` forces it off immediately.
-  The LED additionally has an MQTT Last Will on `MQTT_ENABLE_ALL_TOPIC`
-  (`connectMqtt()` in `main.cpp`), so if this ESP32 crashes/loses power
-  without disconnecting cleanly, the broker turns the LED off automatically
-  rather than leaving it stuck on the last color shown.
+  The LED additionally has an MQTT Last Will on `MQTT_ENABLE_ALL_TOPIC`, so
+  if this ESP32 crashes/loses power without disconnecting cleanly, the
+  broker turns the LED off automatically rather than leaving it stuck on
+  the last color shown.
 - **AC dimming**: zero-cross phase-angle approach via the vendored
   [RBDdimmer](lib/RBDdimmer) library, with fixes on top of upstream (see
   "Known issues & tuning" below).
-- **Startup ramp**: `updateFanRamp()` in `main.cpp` steps the applied power
-  toward the target at ~40%/s instead of jumping straight to it - an abrupt
-  jump to high power made the motor start with a loud stutter before
-  catching.
 - **Status telemetry**: current BPM/fan speed/connection state are
-  published to `MQTT_STATUS_TOPIC` every few seconds for monitoring, and
-  logged to the serial monitor every 2 seconds. WiFi is retried in the
-  background if unavailable at boot or dropped later; the fan keeps working
-  regardless (BLE control is independent of it), but the RGB LED needs it
-  since Tasmota only speaks MQTT.
+  published to `MQTT_STATUS_TOPIC` every few seconds (BPM reports as 0 once
+  the strap is disconnected/stale, rather than freezing on the last
+  reading), and logged to the serial monitor every 2 seconds. WiFi is
+  retried in the background if unavailable at boot or dropped later; the
+  fan keeps working regardless (BLE control is independent of it), but the
+  RGB LED needs it since Tasmota only speaks MQTT.
 
 ## Wiring (ESP32-WROOM <-> RobotDyn AC Dimmer module)
 
@@ -86,8 +89,9 @@ and fill in:
   required for the RGB LED, optional for the fan
 - `HRM_MAC_ADDRESS` once you know your strap's BLE address (optional but
   recommended - leave empty to accept the first Heart Rate Service found)
-- `HRM_BASE_SPEED`/`HRM_MIN_BPM`/`HRM_MAX_BPM`/`HRM_MAX_SPEED` - tune these
-  to your actual riding HR range and fan's safe ceiling
+- `HRM_BASE_SPEED`/`HRM_MIN_BPM`/`HRM_MAX_BPM`/`HRM_MAX_SPEED`/
+  `HRM_HYSTERESIS_BPM` - tune these to your actual riding HR range and
+  fan's safe ceiling
 - `HR_ZONE1_MIN`..`HR_ZONE5_MIN` - your actual HR zone boundaries, for the
   LED color
 
@@ -100,6 +104,48 @@ preconfigured to `COM4`.
 pio run -t upload
 pio device monitor
 ```
+
+## Home Assistant
+
+Two things can be exposed to Home Assistant over MQTT - a switch to
+override the fan on/off, and sensors reading `MQTT_STATUS_TOPIC`'s BPM/fan
+speed. Add to `configuration.yaml`:
+
+```yaml
+mqtt:
+  switch:
+    - name: "Fan Dimmer"
+      unique_id: fan_dimmer_power
+      command_topic: "cmnd/FanDimmer/power"
+      state_topic: "stat/FanDimmer/power"
+      payload_on: "ON"
+      payload_off: "OFF"
+      optimistic: false
+      retain: false # don't persist OFF - the fan must default ON if HA goes unused
+
+  sensor:
+    - name: "Fan Dimmer BPM"
+      unique_id: fan_dimmer_bpm
+      state_topic: "tele/FanDimmer/status"
+      value_template: "{{ value_json.bpm }}"
+      unit_of_measurement: "bpm"
+      icon: mdi:heart-pulse
+      state_class: measurement
+
+    - name: "Fan Dimmer Speed"
+      unique_id: fan_dimmer_speed
+      state_topic: "tele/FanDimmer/status"
+      value_template: "{{ value_json.fan_speed }}"
+      unit_of_measurement: "%"
+      icon: mdi:fan
+      state_class: measurement
+```
+
+Then reload MQTT (or restart Home Assistant). The switch is
+non-optimistic - it only flips once the ESP32 confirms the change on
+`stat/FanDimmer/power` - and its command isn't retained, so a reboot with
+Home Assistant unavailable/unconfigured always leaves the fan on its
+normal BPM-driven behavior rather than stuck off.
 
 ## Known issues & tuning
 

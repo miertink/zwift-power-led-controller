@@ -2,9 +2,8 @@
 
 #include <Arduino.h>
 
-// BLE central that connects to a heart rate strap advertising the standard BLE Heart Rate
-// Service (0x180D) - e.g. a Garmin HRM 200 - and keeps the latest BPM reading available.
-// This is the sole source driving fan speed now; there is no MQTT subscription involved.
+// BLE central that connects to a heart rate strap (standard BLE Heart Rate Service,
+// 0x180D) and keeps the latest BPM reading available.
 
 void hrmBegin();
 

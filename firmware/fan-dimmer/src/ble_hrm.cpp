@@ -14,16 +14,12 @@ static volatile bool connected = false;
 static volatile int lastBpm = 0;
 static volatile unsigned long lastHrUpdateMillis = 0;
 
-// Set from the scan callback (BLE host task context) when a matching strap is found;
-// consumed from hrmLoop() (Arduino loop context) to actually connect - NimBLE examples
-// consistently avoid calling connect() directly from inside the scan callback.
+// Set from the scan callback (BLE host task context); consumed from hrmLoop() (Arduino
+// loop context) to actually connect.
 static volatile bool pendingConnectRequest = false;
 static NimBLEAdvertisedDevice *pendingDevice = nullptr;
 
-// scan->start() with duration=0 ("scan forever") hangs on this hardware/library version -
-// bounded scans (a few seconds) work fine and return promptly, so scanning is done in
-// repeated short windows instead, restarted here whenever a window ends without having
-// found/connected to a strap.
+// Bounded scan windows, restarted on every window end - see README (indefinite scans hang).
 static void onScanComplete(NimBLEScanResults results) {
     if (connected || pendingConnectRequest) {
         return;
@@ -41,7 +37,7 @@ static bool addressMatches(const NimBLEAddress &address) {
 class HrmScanCallbacks : public NimBLEAdvertisedDeviceCallbacks {
     void onResult(NimBLEAdvertisedDevice *advertisedDevice) override {
         if (pendingConnectRequest) {
-            return; // already found one, waiting for hrmLoop() to consume it
+            return;
         }
         if (!advertisedDevice->isAdvertisingService(HEART_RATE_SERVICE_UUID)) {
             return;
