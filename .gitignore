@@ -8,9 +8,3 @@ dist/
 
 # Contains real Zwift credentials -- never commit this
 Zwift_Python_Client.txt
-
-# Contains real WiFi/MQTT credentials -- never commit this
-firmware/fan-dimmer/include/config.h
-
-# PlatformIO build output
-firmware/**/.pio/

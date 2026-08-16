@@ -49,21 +49,6 @@ My current setup uses the BL602-based controller, and below is an illustration s
 
 Unfortunately, there will always be a small delay between your riding power and the corresponding RGB color change. This is due to ZWIFT’s API limitations, which restrict the request rate (4-5 sec).
 
-## Fan speed + heart-rate-zone LED (AC dimmer, ESP32)
-
-Fan speed and RGB LED color are now both driven live from heart rate,
-read directly over Bluetooth Low Energy from a chest strap, by a
-self-contained ESP32-WROOM - not from Zwift power or `run.py`/MQTT. See
-[firmware/fan-dimmer](firmware/fan-dimmer) for the firmware, wiring diagram
-and full write-up (BLE HRM connection, fan curve, HR-zone color mapping,
-AC dimmer wiring/tuning notes).
-
-`run.py`'s own MQTT-published fan/LED-color path (`FAN_SOURCE`,
-`FAN_*`/`MQTT_FAN_*` settings, [fan_speed.py](fan_speed.py)) still exists in
-this repo but is no longer run in this setup - the systemd service that
-used to run `run.py` on the Raspberry Pi is stopped and disabled, since it
-and the ESP32 would otherwise fight over the same RGB LED MQTT topics.
-
 ## Ride On !!
 
 
