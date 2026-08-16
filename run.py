@@ -16,9 +16,7 @@ import signal
 import time
 import json
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
-# Logging.basicConfig(filename='/var/log/ZwiftLight.log', filemode='w', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -54,17 +52,12 @@ def main():
     signal.signal(signal.SIGTERM, _handle_sigterm)
     mqtt_client = None
 
-    # If MQTT is enabled, set up the MQTT client
     if USE_MQTT:
         mqtt_client = setup_mqtt()
 
-    # Zwift client setup
-    """Login into Zwift and find if user is existent"""
     client = Client(USERNAME, PASSWORD)
     world = client.get_world(1)
 
-    # Get user profile
-    """Retrieve user profile information from Zwift and set user cycling power zone 7 (Z7)."""
     try:
         profile = client.get_profile()
         user_profile = profile.profile
@@ -76,14 +69,10 @@ def main():
         logger.error(f'Error retrieving user profile, please check username, password and PLAYER_ID in settings.py ({e})')
         exit(1)
 
-    # Some setup before the main routine
-    """Set Z7 cycling power zone, cycling power smooth factor, and set some variables."""
     online = False
     error_count = 0
-    p2z = PowerToColor(THRESHOLDS, DEADBAND, OVERRUN_LIMIT)
+    color_mapper = PowerToColor(THRESHOLDS, DEADBAND, OVERRUN_LIMIT)
 
-    # Main routine
-    """Check online activity and publish into MQTT broker if enabled"""
     try:
         while not online:
             if USE_MQTT:
@@ -110,7 +99,7 @@ def main():
                     status = world.player_status(PLAYER_ID)
                     if status.sport == 0:
                         power_percentage = round(status.power / ftp_user_profile * 100)
-                        led_color_hex = p2z.switch_output(power_percentage)
+                        led_color_hex = color_mapper.switch_output(power_percentage)
                         msg_dict = {
                             'is_online': 1,
                             'sport': 'cycling',

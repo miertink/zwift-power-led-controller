@@ -16,7 +16,6 @@ MQTT_PW = "password"
 #  CONSTANTS AND CONFIGURATIONS
 MQTT_CONNECT_RETRY_INTERVAL = 5  # Seconds
 MQTT_ZWIFT_REQUEST_INTERNAL = 4  # Seconds -> Zwift does not allow shorter request cycle
-BUFFER_SIZE = 3  # Ring buffer size that acts as weight factor to smooth out cycling power oscilation
 # Short keepalive so that if this script crashes/loses power without disconnecting cleanly,
 # the broker notices and fires the Last Will (MQTT_ENABLE_ALL_TOPIC -> Offline) quickly.
 MQTT_KEEPALIVE_SECONDS = 15
