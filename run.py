@@ -10,7 +10,6 @@ from zwift import Client
 from zwift.error import RequestException
 from paho.mqtt import client as mqtt
 from power_to_color import PowerToColor
-from fan_speed import get_fan_speed_strategy
 from settings import *
 import logging
 import signal
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 def _handle_sigterm(signum, frame):
     """Translate SIGTERM (sent by e.g. systemctl stop/restart) into a KeyboardInterrupt,
     so it goes through the same graceful shutdown path as Ctrl+C instead of killing the
-    process outright and skipping the fan/LED shutoff."""
+    process outright and skipping the LED shutoff."""
     raise KeyboardInterrupt()
 
 
@@ -81,7 +80,6 @@ def main():
     """Set Z7 cycling power zone, cycling power smooth factor, and set some variables."""
     online = False
     error_count = 0
-    fan_speed_strategy = get_fan_speed_strategy()
     p2z = PowerToColor(THRESHOLDS, DEADBAND, OVERRUN_LIMIT)
 
     # Main routine
@@ -99,15 +97,12 @@ def main():
                 if USE_MQTT:
                     publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 1)
                     publish_status(mqtt_client, MQTT_DIMMER_TOPIC, 100)
-                    publish_status(mqtt_client, MQTT_FAN_ENABLE_TOPIC, 1)
             except (Exception, RequestException) as e:
                 online = False
                 error_count += 1
                 logger.info(f'{PLAYER_ID} appears to be offline - trying.. {error_count} ({e})')
                 if USE_MQTT:
                     publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
-                    publish_status(mqtt_client, MQTT_FAN_ENABLE_TOPIC, 0)
-                    publish_status(mqtt_client, MQTT_FAN_SPEED_TOPIC, 0)
             time.sleep(MQTT_CONNECT_RETRY_INTERVAL)
 
             while online:
@@ -116,7 +111,6 @@ def main():
                     if status.sport == 0:
                         power_percentage = round(status.power / ftp_user_profile * 100)
                         led_color_hex = p2z.switch_output(power_percentage)
-                        fan_speed_percentage = fan_speed_strategy.compute(status, ftp_user_profile)
                         msg_dict = {
                             'is_online': 1,
                             'sport': 'cycling',
@@ -124,14 +118,12 @@ def main():
                             'power': status.power,
                             'power percentage': power_percentage,
                             'rbg output color': led_color_hex,
-                            'fan speed': fan_speed_percentage,
                             'speed': float(f"{float(status.speed) / 1000000.0:.2f}")
                         }
                         logger.info(msg_dict)
 
                         if USE_MQTT:
                             publish_status(mqtt_client, MQTT_BASE_COLOR_TOPIC, led_color_hex)
-                            publish_status(mqtt_client, MQTT_FAN_SPEED_TOPIC, fan_speed_percentage)
                             publish_status(mqtt_client, MQTT_INFO_TOPIC, payload=json.dumps(msg_dict))
                 except (Exception, RequestException) as e:
                     online = False
@@ -148,8 +140,6 @@ def main():
         if USE_MQTT and mqtt_client is not None:
             mqtt_client.loop_start()
             publish_status(mqtt_client, MQTT_ENABLE_ALL_TOPIC, 0)
-            publish_status(mqtt_client, MQTT_FAN_ENABLE_TOPIC, 0)
-            publish_status(mqtt_client, MQTT_FAN_SPEED_TOPIC, 0)
             time.sleep(0.3)
             mqtt_client.loop_stop()
             mqtt_client.disconnect()

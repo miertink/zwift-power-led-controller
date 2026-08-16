@@ -2,7 +2,7 @@
 
 ## Introduction:
 
-There are already several code repositories available on GitHub that retrieve ZWIFT real-time user data and control devices like fans and lights. I’ve reused and enhanced some of these to create a version tailored specifically to my needs.
+There are already several code repositories available on GitHub that retrieve ZWIFT real-time user data and control devices like lights. I’ve reused and enhanced some of these to create a version tailored specifically to my needs.
 
 I recommend this project for individuals with some experience in Python, firmware flashing, networking, electronic and working with devices like ESP8266. Several configurations across different aspects are required, so a basic understanding in these areas will be helpful.
 
