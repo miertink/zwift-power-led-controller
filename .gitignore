@@ -8,3 +8,7 @@ dist/
 
 # Contains real Zwift credentials -- never commit this
 Zwift_Python_Client.txt
+
+# Contains real Zwift/MQTT credentials -- never commit this. Copy settings.py.example
+# to settings.py and fill in your own.
+settings.py

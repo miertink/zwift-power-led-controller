@@ -30,7 +30,7 @@ My current setup uses the BL602-based controller, and below is an illustration s
 
     pip install -r requirements.txt
 
-   - Update the settings.py file with your ZWIFT credentials, MQTT broker configuration, and the MQTT topics matching your LED controller device setup.
+   - Copy `settings.py.example` to `settings.py` (gitignored, never committed) and fill in your ZWIFT credentials, MQTT broker configuration, and the MQTT topics matching your LED controller device setup.
    - After configuring everything, just start *run.py* and you're ready to ride!
 
 > [!TIP]
